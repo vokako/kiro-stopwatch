@@ -43,6 +43,8 @@ M5Stack StopWatch（C152，ESP32-S3 圆形 AMOLED）开发工作区：官方资�
 - 网页保存映射时，只填表情不填按键的行曾被写进 [keys]（值是表情名）；已在 set_keys 过滤空动作，但历史配置里可能残留，检查 ~/.config/swlink/swlink.toml 的 [keys] 是否有表情名作为值 · `grep -c 'if str(v).strip()' link/swlink/daemon.py` · 2026-09-16
 - Kiro 身子位图由 linkfw/tools/gen_kiro_body.py 生成（rsvg 2000px 栅格化 → LANCZOS 缩放 → 对 alpha 做 0.6px 高斯模糊拉宽抗锯齿过渡 → 强制中性灰避免 RGB565 量化出彩边）；当前 247x300、145 KiB flash，sprite 340x430、BY=46。眼睛用 face.cpp 的 fillEllipseAA（4x4 超采样混合进 sprite 缓冲），M5GFX 的 fillEllipse 是硬边不要用 · `grep -c 'fillEllipseAA' linkfw/src/face.cpp` · 2026-09-16
 - CO5300 屏在 M5GFX 里固定 16 位 RGB565（Panel_CO5300 的 0x3A=0x55 与 _write_depth 都硬编码），无法开 18/24 位。抗锯齿过渡像素若太暗（灰度 <=24），AMOLED 自发光会把 R/G/B 子像素分别点亮而看成彩色小点，所以生成位图要给 alpha 设下限（gen_kiro_body.py --floor 40，默认 blur 0.35），边缘保留 0→56→240 两级即可 · `grep -n 'floor' linkfw/tools/gen_kiro_body.py | head -3` · 2026-09-16
+- 项目 2026-09-22 已转为 git 仓库（5 个提交，无 remote）：references/ 整个 gitignore（1.2 GB 上游克隆与 PDF），由 scripts/fetch-references.sh 按固定版本拉 M5Unified 0.2.22 + M5GFX 0.2.29 并打 SDL 补丁；ArduinoJson 改为 linkfw/platformio.ini 里钉版本从 registry 拉，不再依赖 UserDemo 的 components 目录。全新克隆 1.9 MB，实测两个固件目标可编译、39 个主机测试通过 · `git -C /Users/cfu/work/projects/kiro-stopwatch log --oneline | wc -l` · 2026-09-22
+- NOTICE.md 记录：linkfw/buddy 的 kiro_body.c 是 Kiro 幽灵 logo（Kiro/AWS 品牌素材，来源 SVG 无 license）生成的位图，私用可以，公开推送前需要决定授权或换素材（gen_kiro_body.py 换 SVG 即可） · `grep -c 'Kiro ghost artwork' NOTICE.md` · 2026-09-22
 
 ## Children
 
