@@ -1,0 +1,16 @@
+diff --git a/src/M5GFX.cpp b/src/M5GFX.cpp
+index 887e2fd..0cd271b 100644
+--- a/src/M5GFX.cpp
++++ b/src/M5GFX.cpp
+@@ -4005,6 +4005,11 @@ init_clear:
+       h = 240;
+       break;
+ 
++    case board_M5StopWatch:
++      w = 466;
++      h = 466;
++      break;
++
+       case board_M5VAMeter:
+       w = 240;
+       h = 240;

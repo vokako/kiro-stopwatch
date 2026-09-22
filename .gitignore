@@ -1,0 +1,25 @@
+# PlatformIO build output and toolchains
+.pio/
+.vscode/
+
+# Python (link/)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Third-party clones and vendor PDFs: fetched by scripts/fetch-references.sh
+references/*
+!references/README.md
+
+# Device flash dumps (large, and specific to one unit)
+backup/
+
+# Local agent / editor / CLI state that happened to land in the tree
+.kiro/
+.local/
+
+# Scratch captures
+*.png
+!docs/**/*.png
+.DS_Store
