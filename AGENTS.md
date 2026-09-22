@@ -112,4 +112,5 @@ screen, so treat anything beyond radius ~233 from the centre as off-glass.
 - `sim-smoke/` — minimal SDL smoke test; keep it building when touching the M5GFX patch.
 - `references/` — official PDFs and shallow clones; read-only except for the recorded patch.
 - `scripts/` — device utilities. `backup/` is created on demand and is not committed.
-- `docs/` — `requirements/` (what), `design-docs/` (how), `unresolved.md` (what is still open).
+- `docs/` — `requirements/` (what), `design-docs/` (how), `unresolved.md` (what is still open),
+  `recommended-config.md` (the suggested default mapping and how to wire voice hotkeys).

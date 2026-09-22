@@ -22,6 +22,8 @@ low_battery = 20             # one local macOS notification per discharge cycle 
 # imu.face_down imu.face_up.
 # Action: "[tap:|press:|release:]KEY[+KEY...]", default verb is tap. The dashboard at
 # http://127.0.0.1:9898/ edits this table with grouped pickers and saves it back here.
+# A recommended starting table (voice, confirm, cancel, session switching) and how to wire the
+# voice buttons to an input method: docs/recommended-config.md.
 [keys]
 "A.single" = "media_play_pause"
 "A.double" = "media_next"

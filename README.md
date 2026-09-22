@@ -73,6 +73,9 @@ terminal running it (the dashboard header shows whether that is granted).
 
 Mapping rules worth knowing:
 
+- A ready-made starting point — voice, confirm, cancel, session switching, and how to wire the voice
+  buttons to macOS Dictation or the WeChat input method — is in
+  [docs/recommended-config.md](docs/recommended-config.md).
 - `single` / `double` / `triple` are decided after the multi-click window, so a double click never
   also fires a single. A held button fires `hold` and no click at all.
 - For "hold the watch button = hold a keyboard key", use the `.hold` trigger with the *hold while
