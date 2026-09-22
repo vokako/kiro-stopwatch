@@ -38,13 +38,21 @@ fetch() {
   IFS='|' read -r name url ref <<<"$1"
   path="${dest}/${name}"
   if [[ -d "${path}/.git" ]]; then
-    echo "==> ${name}: already present, checking out ${ref}"
-    git -C "${path}" fetch --tags --quiet origin
+    # Offline is fine when the pinned revision is already in the clone: warn, do not abort.
+    if ! git -C "${path}" fetch --tags --quiet origin 2>/dev/null; then
+      echo "==> ${name}: cannot reach ${url} (offline?), using the local clone"
+    else
+      echo "==> ${name}: already present, checking out ${ref}"
+    fi
+    if ! git -C "${path}" -c advice.detachedHead=false checkout --quiet "${ref}" 2>/dev/null; then
+      echo "    ERROR: ${ref} is not in the local clone and cannot be fetched" >&2
+      exit 1
+    fi
   else
     echo "==> ${name}: cloning ${url}"
     git clone --quiet "${url}" "${path}"
+    git -C "${path}" -c advice.detachedHead=false checkout --quiet "${ref}"
   fi
-  git -C "${path}" -c advice.detachedHead=false checkout --quiet "${ref}"
   printf '    %s at %s\n' "${name}" "$(git -C "${path}" rev-parse --short HEAD)"
 }
 
