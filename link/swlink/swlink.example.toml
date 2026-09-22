@@ -1,0 +1,40 @@
+# swlink configuration. Copy and edit; run with `swlink daemon --config mine.toml`.
+
+[device]
+# port = "/dev/cu.usbmodem31301"   # omit to auto-detect the Espressif USB-Serial/JTAG port
+# ble_address = "…"                # omit to find the watch by its swlink BLE service
+
+[daemon]
+host = "127.0.0.1"     # loopback only; the WebSocket has no auth
+port = 9898
+imu_hz = 20            # IMU stream rate requested from the device (0 = off)
+sync_rtc = true        # push the Mac's clock to the device RTC on connect
+virtual_mic = "BlackHole"   # output device the watch mic is played into (apps record from it)
+audio_autostart = false     # start the virtual mic as soon as the watch connects
+key_repeat = true           # hold: actions auto-repeat like a physical key (500 ms, then 30/s)
+ble = true                  # fall back to the watch's BLE link when no USB port is present
+wifi_discovery_timeout = 1.5 # mDNS scan duration before BLE fallback
+low_battery = 20             # one local macOS notification per discharge cycle at/below this percent
+
+# Triggers -> action. Button triggers: "<A|B>.<single|double|triple|hold|down|up>",
+# "PWR.<single|double|hold>" (the power key is read from the PMIC, so no down/up).
+# IMU triggers: imu.shake imu.tap imu.tilt_left imu.tilt_right imu.tilt_toward imu.tilt_away
+# imu.face_down imu.face_up.
+# Action: "[tap:|press:|release:]KEY[+KEY...]", default verb is tap. The dashboard at
+# http://127.0.0.1:9898/ edits this table with grouped pickers and saves it back here.
+[keys]
+"A.single" = "media_play_pause"
+"A.double" = "media_next"
+"A.hold"   = "media_previous"
+"B.single" = "media_volume_down"
+"B.double" = "media_volume_up"
+"B.down"   = "hold:right"          # hold B = hold the right-arrow key (auto-repeats), released on B up
+"imu.shake" = "media_play_pause"
+
+# Kiro face: mood shown when a trigger fires. "mood" or "mood:ms" (default 1500 ms);
+# on a ".down" trigger the mood is held while the button is down. Moods:
+# sleep idle thinking working waiting question error celebrate
+[moods]
+"A.single" = "celebrate"
+"B.down"   = "working"
+"imu.shake" = "error:800"

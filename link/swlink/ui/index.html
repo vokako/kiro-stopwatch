@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>swlink — StopWatch</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { --bg:#0f1115; --card:#181b22; --line:#2a2f3a; --fg:#e6e6e6; --dim:#8b93a5; --ok:#3ddc84; --warn:#ffb648; --bad:#ff5c5c; --acc:#7aa2ff; }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif }
+  header { display:flex; align-items:center; gap:14px; padding:14px 20px; border-bottom:1px solid var(--line) }
+  header h1 { font-size:16px; margin:0; font-weight:600 }
+  .pill { padding:2px 10px; border-radius:999px; font-size:12px; background:#222; color:var(--dim) }
+  .pill.ok { background:rgba(61,220,132,.15); color:var(--ok) } .pill.bad { background:rgba(255,92,92,.15); color:var(--bad) }
+  main { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; padding:16px 20px; align-items:start }
+  .card.wide { grid-column:1/-1 }
+  @media (min-width:1100px) { .card.span2 { grid-column:span 2 } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px }
+  .card h2 { margin:0 0 10px; font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--dim) }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:4px 14px; font-variant-numeric:tabular-nums }
+  .kv b { color:var(--dim); font-weight:500 }
+  .big { font-size:28px; font-weight:600; margin:2px 0 6px }
+  .bubble { position:relative; width:180px; height:180px; border-radius:50%; border:1px solid var(--line); margin:6px auto; background:radial-gradient(circle,#1d2130 0,#141720 70%) }
+  .bubble i { position:absolute; left:50%; top:50%; width:18px; height:18px; margin:-9px; border-radius:50%; background:var(--acc); box-shadow:0 0 12px var(--acc); transition:transform .05s linear }
+  .bubble:after { content:""; position:absolute; inset:50% auto auto 50%; width:2px; height:2px; background:var(--dim) }
+  .bars { display:grid; grid-template-columns:auto 1fr auto; gap:4px 8px; align-items:center; font-variant-numeric:tabular-nums }
+  .bar { height:8px; background:#20242e; border-radius:4px; overflow:hidden; position:relative }
+  .bar span { position:absolute; top:0; bottom:0; left:50%; background:var(--acc) }
+  .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:6px 0; min-width:0 }
+  .row > * { min-width:0 }
+  button, input, select { font:inherit; color:var(--fg); background:#20242e; border:1px solid var(--line); border-radius:6px; padding:6px 10px; max-width:100% }
+  select { -webkit-appearance:none; appearance:none; padding-right:22px;
+    background-image:linear-gradient(45deg,transparent 50%,var(--dim) 50%),linear-gradient(135deg,var(--dim) 50%,transparent 50%);
+    background-position:calc(100% - 14px) 55%,calc(100% - 9px) 55%; background-size:5px 5px,5px 5px; background-repeat:no-repeat }
+  button { cursor:pointer } button:hover { border-color:var(--acc) } button.primary { background:var(--acc); color:#0b0e14; border-color:transparent; font-weight:600 }
+  input[type=range] { padding:0 }
+  .facewrap { display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start }
+  #facepreview { width:200px; height:230px; border-radius:12px; border:1px solid var(--line); background:#000; flex:0 0 auto }
+  .moodgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(92px,1fr)); gap:6px; flex:1 1 220px; min-width:0 }
+  .moodgrid button { padding:6px 4px; font-size:12px } .moodgrid button.on { border-color:var(--acc); color:var(--acc) }
+  .log { height:220px; overflow:auto; font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; background:#0c0e12; border:1px solid var(--line); border-radius:6px; padding:8px; white-space:pre-wrap }
+  .log .btn { color:var(--warn) } .log .touch { color:var(--acc) } .log .ack { color:var(--ok) } .log .err { color:var(--bad) } .log .dim { color:var(--dim) }
+  table { width:100%; border-collapse:collapse; font-size:13px } td { padding:4px 6px; border-top:1px solid var(--line) }
+  .touchpad { position:relative; width:180px; height:180px; border-radius:50%; border:1px solid var(--line); margin:6px auto; background:#141720 }
+  .touchpad i { position:absolute; width:14px; height:14px; margin:-7px; border-radius:50%; background:var(--warn); opacity:0; transition:opacity .3s }
+  small { color:var(--dim) }
+  /* mapping editor: one grid row per mapping, wraps instead of overflowing */
+  .maprow { display:grid; gap:8px 10px; align-items:center; padding:10px 0; border-top:1px solid var(--line);
+    grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) auto }
+  .maprow:first-child { border-top:0 }
+  .maphead { display:grid; gap:8px 10px; padding-bottom:4px; font-size:11px; letter-spacing:.04em; text-transform:uppercase; color:var(--dim);
+    grid-template-columns:minmax(0,1.1fr) minmax(0,1fr) minmax(0,1.6fr) minmax(0,1fr) minmax(0,.9fr) auto }
+  .maprow > *, .maphead > * { min-width:0 }
+  .maprow select, .maprow input { width:100% }
+  .cell { display:flex; flex-direction:column; gap:3px; min-width:0 }
+  .cell > label { font-size:11px; color:var(--dim); display:none }
+  .mods { display:flex; gap:4px; flex-wrap:wrap }
+  .mods label { display:inline-flex; align-items:center; gap:2px; font-size:11px; color:var(--dim) }
+  .mods select { padding:2px 18px 2px 4px; font-size:11px; width:auto; min-width:52px }
+  .maprow .btns { display:flex; gap:6px } .maprow .btns button { padding:6px 9px }
+  @media (max-width:900px) {
+    .maphead { display:none }
+    .maprow { grid-template-columns:1fr 1fr; padding:12px 0 }
+    .cell > label { display:block }
+    .maprow .btns { grid-column:1/-1; justify-content:flex-end }
+  }
+  .log .trigger { color:#c792ea } .log .key { color:#82aaff }
+</style>
+</head>
+<body>
+<header>
+  <h1>swlink · M5Stack StopWatch</h1>
+  <span id="ws" class="pill">websocket</span>
+  <span id="dev" class="pill">device</span>
+  <span id="port" class="pill"></span>
+  <span id="hid" class="pill" title="who turns button presses into keys"></span>
+  <span id="rate" class="pill"></span>
+  <span id="ax" class="pill" title="macOS Accessibility permission for synthetic key events"></span>
+</header>
+<main>
+  <section class="card">
+    <h2>Device</h2>
+    <div class="kv">
+      <b>Firmware</b><span id="fw">–</span>
+      <b>Capabilities</b><span id="caps">–</span>
+      <b>Battery</b><span id="bat">–</span>
+      <b>RTC</b><span id="rtc">–</span>
+      <b>Uptime</b><span id="up">–</span>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button onclick="send({t:'power.get'})">Refresh power</button>
+      <button onclick="send({t:'rtc.get'})">Read RTC</button>
+      <button onclick="send({t:'rtc.set',iso:new Date().toISOString().slice(0,19)})">Sync RTC to Mac</button>
+      <button onclick="send({t:'hello'})">Hello</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>IMU · tilt (dot rolls to the low edge) and rotation</h2>
+    <div class="bubble"><i id="dot"></i></div>
+    <div class="bars">
+      <span>ax</span><div class="bar"><span id="bax"></span></div><span id="vax">0</span>
+      <span>ay</span><div class="bar"><span id="bay"></span></div><span id="vay">0</span>
+      <span>az</span><div class="bar"><span id="baz"></span></div><span id="vaz">0</span>
+      <span>gx</span><div class="bar"><span id="bgx"></span></div><span id="vgx">0</span>
+      <span>gy</span><div class="bar"><span id="bgy"></span></div><span id="vgy">0</span>
+      <span>gz</span><div class="bar"><span id="bgz"></span></div><span id="vgz">0</span>
+    </div>
+    <div class="row"><label>rate <select id="imuhz" onchange="send({t:'imu.rate',hz:+this.value})">
+      <option>0</option><option>5</option><option>10</option><option selected>20</option><option>50</option><option>100</option></select> Hz</label></div>
+  </section>
+
+  <section class="card">
+    <h2>Touch · buttons</h2>
+    <div class="touchpad"><i id="tp"></i></div>
+    <div class="row"><span class="pill" id="btnA">A</span><span class="pill" id="btnB">B</span><span class="pill" id="btnPWR">PWR</span><small id="lasttouch"></small></div>
+  </section>
+
+  <section class="card wide">
+    <h2>Key mapping <small id="cfgpath"></small></h2>
+    <div class="maphead"><span>trigger</span><span>verb</span><span>modifiers</span><span>key</span><span>face</span><span></span></div>
+    <div id="keys"></div>
+    <div id="conflict" style="display:none;margin:8px 0;padding:8px 10px;border:1px solid #6b4a12;background:rgba(255,182,72,.08);border-radius:6px;font-size:12px;color:var(--warn)"></div>
+    <div class="row">
+      <button onclick="addKeyRow()">+ add</button>
+      <button class="primary" onclick="saveKeys()">Save</button>
+      <input id="keysink" placeholder="▶ test output lands here (keys go to the frontmost app)" style="flex:1;min-width:260px">
+      <small id="keysmsg"></small>
+    </div>
+    <small>Trigger: button gestures (single / double / triple click, hold, raw down / up) or IMU gestures
+      (shake, tap, tilt, face down/up). Action: each modifier is off / <b>any</b> side / <b>L</b> / <b>R</b> (right-side keys are distinct to the OS: e.g. right-cmd can be a dedicated hotkey); pick a key; <b>tap</b> presses and releases once;
+      <b>hold while pressed</b> (on a <code>.hold</code> trigger) keeps the key down from the moment the button counts as held
+      until you let go, auto-repeating like a real key; <b>press</b> / <b>release</b> are the manual halves.
+      Click counting is arbitrated on the watch: it waits out the multi-click window, so a double click fires only
+      <code>.double</code> and never <code>.single</code>, and a held button produces no click at all. Raw
+      <code>.down</code>/<code>.up</code> bypass that arbitration and fire on every press — use them only when you want that. <b>▶</b> fires the action on this Mac right now and the
+      keystroke lands in the test box. Synthetic keys always go to the <b>frontmost app</b>: when using the watch,
+      bring the app you want to control to the front first.</small>
+  </section>
+
+  <section class="card span2">
+    <h2>Kiro face <small id="moodnow"></small></h2>
+    <div class="facewrap">
+      <canvas id="facepreview" width="200" height="230"></canvas>
+      <div style="flex:1 1 220px;min-width:0">
+        <div class="moodgrid" id="moodbtns"></div>
+        <div class="row" style="margin-top:8px">
+          <label><input type="checkbox" id="moodpush" checked> send to watch</label>
+          <label>for <input id="moodms" type="number" min="0" max="60000" value="3000" style="width:74px"> ms</label>
+          <small>0 = until changed</small>
+        </div>
+      </div>
+    </div>
+    <small>The watch shows the Kiro ghost: idle while a host is connected, asleep otherwise. Each mapping row can bind a face
+      (column "face") that flashes for 1.5 s on taps, or is held while a <code>.down</code> button is pressed. A face without a
+      key is fine too — e.g. shake the watch → error face. Apps can drive it with <code>{"t":"mood.set","mood":"working","ms":0}</code>.</small>
+  </section>
+
+  <section class="card">
+    <h2>Actuators</h2>
+    <div class="row">
+      <button onclick="send({t:'haptic',level:+lvl.value,ms:100})">Vibrate</button>
+      <input type="range" id="lvl" min="0" max="255" value="150" style="width:120px"><small>level</small>
+    </div>
+    <div class="row">
+      <button onclick="send({t:'tone',hz:+hz.value,ms:150})">Beep</button>
+      <input type="number" id="hz" value="880" min="100" max="8000" style="width:90px"><small>Hz</small>
+    </div>
+    <div class="row">
+      <input type="range" id="bri" min="1" max="255" value="128" style="width:160px" oninput="send({t:'display.brightness',v:+this.value})"><small>brightness</small>
+    </div>
+    <div class="row">
+      <input id="txt" placeholder="text for the screen" style="flex:1" value="hello from browser">
+      <select id="line"><option value="0">line 0</option><option value="1" selected>line 1</option><option value="2">line 2</option></select>
+      <button class="primary" onclick="send({t:'display.text',text:txt.value,line:+line.value})">Show</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Network · Wi-Fi and pairing</h2>
+    <div class="kv"><b>Wi-Fi</b><span id="wifistate">–</span><b>Device LAN</b><span id="wifiaddr">–</span><b>Pairing</b><span id="pairstate">–</span></div>
+    <div class="row" style="margin-top:8px"><input id="ssid" autocomplete="username" placeholder="Wi-Fi name (SSID)" style="flex:1"><input id="psk" type="password" autocomplete="current-password" placeholder="Wi-Fi password" style="flex:1"></div>
+    <div class="row"><button class="primary" onclick="saveWifi()">Save & connect</button><button onclick="send({t:'wifi.status'})">Refresh</button><button onclick="forgetWifi()">Forget Wi-Fi</button><button onclick="send({t:'_network.pair'})">Create/rotate pairing token</button></div>
+    <small>Credentials go only over the current encrypted/local device link and are stored in the watch NVS; the dashboard and daemon never save or show the password. After connection the daemon finds the watch automatically over mDNS and opens its authenticated TCP link when USB is unplugged.</small>
+  </section>
+
+  <section class="card">
+    <h2>Power policy and device management</h2>
+    <div class="kv"><b>Screen</b><span id="screenstate">–</span><b>USB host</b><span id="usbstate">–</span><b>History store</b><span id="histpath">–</span></div>
+    <div class="row"><label>screen off after <input id="screenoff" type="number" min="0" max="3600" value="45" style="width:70px"> s</label><label>light sleep after <input id="sleepafter" type="number" min="0" max="86400" value="120" style="width:70px"> s</label><label><input id="allowsleep" type="checkbox"> allow battery sleep</label><button class="primary" onclick="savePower()">Save policy</button></div>
+    <small>0 disables a timer. Screen-off keeps USB/Wi‑Fi/BLE communication alive. Deep light sleep is used only when USB, Wi‑Fi and BLE are all inactive; a button or timer wakes it. Thus a paired Bluetooth keyboard remains reachable rather than disappearing to save power.</small>
+  </section>
+
+  <section class="card span2">
+    <h2>Battery history <small id="histmeta"></small><button style="float:right;padding:2px 8px" onclick="requestHistory()">Refresh 24 h</button></h2>
+    <canvas id="powerchart" width="700" height="140" style="width:100%;height:140px;background:#0c0e12;border:1px solid var(--line);border-radius:6px"></canvas>
+    <div id="histevents" class="row"><small>Power samples are stored locally once per minute while the daemon is connected. Discharge estimates appear after enough history accumulates.</small></div>
+  </section>
+
+  <section class="card">
+    <h2>Bluetooth keyboard <small>(watch as a real HID keyboard)</small></h2>
+    <div class="kv">
+      <b>Watch BLE</b><span id="blestate">–</span>
+      <b>Mappings on watch</b><span id="blekeys">–</span>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button id="bleen" class="primary" onclick="send({t:'cfg.set', ble: !bleOn})">Enable Bluetooth</button>
+      <button onclick="send({t:'_ble.pair'})">Open Bluetooth settings…</button>
+      <button onclick="send({t:'ble.status'}); send({t:'keys.get'})">Refresh</button>
+    </div>
+    <small>1) Enable Bluetooth on the watch (over USB). 2) In macOS Bluetooth settings the watch appears as
+      <b>cfu-watch</b> — click Connect; it pairs as a keyboard, no passkey. 3) From then on button mappings are
+      executed by the watch itself as real HID key events (input methods, games and Karabiner all see them), and
+      the OS handles key auto-repeat. Media keys work too. IMU gestures still need the daemon.
+      Disabling takes effect after the watch reboots.</small>
+  </section>
+
+  <section class="card">
+    <h2>Virtual microphone <small>(watch mic as a Mac input device)</small></h2>
+    <div class="row">
+      <select id="vmdev"></select>
+      <button id="vmbtn" class="primary" onclick="toggleVm()">Start</button>
+      <span id="vmstat" class="pill"></span>
+    </div>
+    <div class="bar" style="height:10px;margin:8px 0"><span id="vmlevel" style="left:0;background:var(--ok)"></span></div>
+    <small id="vmhint">Pick a loopback device (BlackHole), press Start, then choose that device as the microphone in Zoom / QuickTime / any app.
+      If no BlackHole appears: <code>brew install --cask blackhole-2ch</code>, then <code>sudo killall coreaudiod</code>.</small>
+  </section>
+
+  <section class="card">
+    <h2>Microphone <small>(raw capture to WAV)</small></h2>
+    <div class="row">
+      <button id="micbtn" class="primary" onclick="toggleMic()">Start recording</button>
+      <select id="micrate"><option>8000</option><option selected>16000</option></select><small>Hz</small>
+      <span id="micstat" class="pill"></span>
+    </div>
+    <canvas id="wave" width="560" height="80" style="width:100%;height:80px;background:#0c0e12;border:1px solid var(--line);border-radius:6px"></canvas>
+    <div class="row"><audio id="player" controls style="width:100%;display:none"></audio><a id="dl" style="display:none;color:var(--acc)">download wav</a></div>
+  </section>
+
+  <section class="card wide">
+    <h2>Event log <small>(imu and mic omitted · ⚡ trigger · ⌨ key sent to macOS)</small>
+      <label style="float:right;font-size:12px;color:var(--dim);margin-left:10px"><input type="checkbox" id="showrep"> show repeats</label>
+      <button style="float:right;padding:2px 8px" onclick="logEl.textContent=''">clear</button></h2>
+    <div id="log" class="log"></div>
+    <div class="row"><input id="raw" placeholder='raw JSON, e.g. {"t":"tone","hz":440,"ms":200}' style="flex:1"><button onclick="sendRaw()">Send</button></div>
+  </section>
+</main>
+<script src="face.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const logEl = $('log');
+let ws, bootMs = null, msgCount = 0, lastRateT = performance.now(), lastCount = 0;
+let mic = { on:false, chunks:[], rate:16000, expectBinary:false };
+let deviceCfg = {}; let powerHistory = null;
+
+function log(cls, text) {
+  const line = document.createElement('div'); line.className = cls;
+  line.textContent = new Date().toLocaleTimeString() + '  ' + text;
+  logEl.appendChild(line); if (logEl.childElementCount > 400) logEl.firstChild.remove();
+  logEl.scrollTop = logEl.scrollHeight;
+}
+function send(obj) { if (ws && ws.readyState === 1) { ws.send(JSON.stringify(obj)); log('dim', '→ ' + JSON.stringify(obj)); } }
+function sendRaw() { try { send(JSON.parse($('raw').value)); } catch (e) { log('err', 'not JSON: ' + e.message); } }
+function pill(id, cls, text) { const e = $(id); e.className = 'pill ' + cls; if (text !== undefined) e.textContent = text; }
+function bar(id, v, max) { $('b'+id).style.left = v < 0 ? (50 + 50*v/max) + '%' : '50%'; $('b'+id).style.width = Math.min(50, 50*Math.abs(v)/max) + '%'; $('v'+id).textContent = v.toFixed(2); }
+
+function connect() {
+  ws = new WebSocket(location.origin.replace(/^http/, 'ws') + '/');
+  ws.binaryType = 'arraybuffer';
+  ws.onopen = () => { pill('ws', 'ok', 'websocket ok'); send({t:'_status'}); setTimeout(requestHistory, 300); };
+  ws.onclose = () => { pill('ws', 'bad', 'websocket closed'); pill('dev', 'bad', 'device ?'); setTimeout(connect, 1500); };
+  ws.onmessage = ev => {
+    if (ev.data instanceof ArrayBuffer) { if (mic.on) onPcm(ev.data); mic.expectBinary = false; return; }
+    let m; try { m = JSON.parse(ev.data); } catch { return; }
+    msgCount++;
+    handle(m);
+  };
+}
+function handle(m) {
+  switch (m.t) {
+    case '_status':
+      pill('dev', m.connected ? 'ok' : 'bad', m.connected ? 'device connected' : 'device lost');
+      $('port').textContent = m.port || '';
+      $('cfgpath').textContent = m.config ? '(' + m.config + ')' : '(not persisted)';
+      $('histpath').textContent = m.history || '–';
+      if (m.triggers) CAT.triggers = m.triggers; if (m.key_names) CAT.keys = m.key_names;
+      if (m.mood_names) { CAT.moods = m.mood_names; renderMoodButtons(); }   // daemon may know moods the page didn't
+      MOODMAP = m.moods || {};
+      if (m.audio_devices) renderVmDevices(m.audio_devices); if (m.audio) renderVm(m.audio);
+      $('port').textContent = (m.transport ? m.transport.toUpperCase() + ' ' : '') + (m.port || '');
+      pill('hid', m.device_hid ? 'ok' : '', m.device_hid ? 'keys: watch HID' : 'keys: daemon inject');
+      if (m.ble) renderBle(m.ble, m.device_hid, null);
+      if (m.keys_enabled === false) pill('ax', 'bad', 'keys disabled (--no-keys)');
+      else if (m.accessibility === false) pill('ax', 'bad', 'keys blocked: grant Accessibility');
+      else if (m.accessibility === true) pill('ax', 'ok', 'keys allowed');
+      else $('ax').textContent = '';
+      renderKeys(m.keys || {}); break;
+    case '_audio': renderVm(m); break;
+    case 'trigger': log('trigger', '⚡ ' + m.name + (m.action ? '  →  ' + m.action : '  (no mapping)')); break;
+    case 'keyevent': if (m.ev !== 'repeat' || $('showrep').checked) log('key', `⌨ ${m.via === 'hid' ? 'HID ' : ''}${m.ev} ${m.key}` + (m.vk != null ? ` (vk ${m.vk})` : '')); break;
+    case 'hello':
+      $('fw').textContent = m.fw + ' · ' + m.board + ' ' + m.w + '×' + m.h;
+      $('caps').textContent = (m.caps || []).join(', '); pill('dev', 'ok', 'device connected'); log('ack', 'hello ' + m.fw); break;
+    case 'power':
+      $('bat').textContent = m.bat + '% · ' + (m.mv/1000).toFixed(2) + ' V' + (m.chg ? ' · charging' : ''); if (m.ms) $('up').textContent = (m.ms/1000|0) + ' s';
+      $('usbstate').textContent = m.usb ? 'connected' : 'not connected'; break;
+    case 'rtc': $('rtc').textContent = m.iso; log('ack', 'rtc ' + m.iso); break;
+    case 'wifi': renderWifi(m); break;
+    case 'screen': $('screenstate').textContent = m.on ? 'on' : 'asleep'; break;
+    case '_history': powerHistory = m; renderHistory(m); break;
+    case 'ble': renderBle(m, null, null); log('ack', 'ble ' + (m.enabled ? (m.connected ? 'connected' : 'advertising') : 'off')); break;
+    case 'keys': renderBle(null, m.hid, m.keys); pill('hid', m.hid ? 'ok' : '', m.hid ? 'keys: watch HID' : 'keys: daemon inject'); break;
+    case 'cfg':
+      deviceCfg = m; bleOn = !!m.ble; $('bleen').textContent = bleOn ? 'Disable Bluetooth' : 'Enable Bluetooth';
+      $('screenoff').value = m.screen_off_s ?? 0; $('sleepafter').value = m.sleep_after_s ?? 0; $('allowsleep').checked = !!m.allow_sleep;
+      $('ssid').value = m.wifi_ssid || ''; $('pairstate').textContent = m.token_set ? 'token stored (not shown)' : 'not paired for Wi‑Fi'; break;
+    case 'imu':
+      bar('ax', m.ax, 2); bar('ay', m.ay, 2); bar('az', m.az, 2); bar('gx', m.gx, 250); bar('gy', m.gy, 250); bar('gz', m.gz, 250);
+      { let dx = -m.ay, dy = -m.ax, r = Math.hypot(dx, dy); if (r > 1) { dx /= r; dy /= r; }   // dot rolls toward the low edge (ay+ left down, ax- bottom down), clamped to the rim
+        $('dot').style.transform = `translate(${(dx*80)|0}px, ${(dy*80)|0}px)`; } break;
+    case 'btn': {
+      const e = $('btn' + m.id); e.className = 'pill ' + (m.ev === 'down' ? 'ok' : m.ev === 'hold' ? 'bad' : '');
+      if (m.ev === 'up') setTimeout(() => e.className = 'pill', 120);
+      log('btn', `button ${m.id} ${m.ev}`); break; }
+    case 'touch': {
+      const tp = $('tp'); tp.style.left = (m.x/466*100) + '%'; tp.style.top = (m.y/466*100) + '%'; tp.style.opacity = m.ev === 'up' ? 0 : 1;
+      $('lasttouch').textContent = `touch ${m.ev} ${m.x},${m.y}`; if (m.ev !== 'move') log('touch', `touch ${m.ev} ${m.x},${m.y}`); break; }
+    case 'mic': mic.rate = m.rate; mic.expectBinary = true; break;
+    case 'ack':
+      if (m.of === 'mood.set' && m.msg) { deviceMood = m.msg; previewMood(m.msg, true); }
+      if (m.of === 'mic.start') { deviceMood = 'listening'; previewMood('listening', true); }
+      if (m.of === 'mic.stop') { deviceMood = 'idle'; previewMood('idle', true); }
+      log('ack', '✓ ' + m.of + (m.msg ? ' (' + m.msg + ')' : '')); if (m.of === 'mic.stop') finishMic(); if (m.of === '_keys.set') keysMsg(m.msg, 'ok'); if (m.of === '_action.test') keysMsg(m.msg, 'ok'); if (m.of === '_audio.start' || m.of === '_audio.stop') send({t:'_status'}); break;
+    case 'err': log('err', '✗ ' + m.of + ': ' + m.msg); if (m.of === 'mic.start') { mic.on = false; $('micbtn').textContent = 'Start recording'; } if (m.of === '_keys.set' || m.of === '_action.test') keysMsg(m.msg, 'bad'); break;
+    case 'log': log('dim', m.msg); break;
+    default: log('dim', JSON.stringify(m));
+  }
+}
+// ---- face preview ----
+let faceAnim = null, previewTimer = 0, deviceMood = 'idle';
+function ensureFaceAnim() { if (!faceAnim && window.KiroFace) faceAnim = KiroFace.animate($('facepreview'), deviceMood); return faceAnim; }
+function previewMood(m, sticky) {           // show m in the browser; drift back to the device's mood
+  const a = ensureFaceAnim(); if (!a) return;
+  a.setMood(m); $('moodnow').textContent = '· ' + m;
+  clearTimeout(previewTimer);
+  if (!sticky) previewTimer = setTimeout(() => { a.setMood(deviceMood); $('moodnow').textContent = '· ' + deviceMood; }, 2500);
+  [...$('moodbtns').children].forEach(b => b.classList.toggle('on', b.dataset.mood === m));
+}
+function renderMoodButtons() {
+  const box = $('moodbtns'); box.innerHTML = '';
+  CAT.moods.forEach(m => {
+    const b = document.createElement('button'); b.textContent = m; b.dataset.mood = m;
+    b.onmouseenter = () => previewMood(m);
+    b.onclick = () => { previewMood(m, true); if ($('moodpush').checked) send({t:'mood.set', mood:m, ms:+$('moodms').value}); };
+    box.appendChild(b);
+  });
+  ensureFaceAnim();
+}
+document.addEventListener('DOMContentLoaded', renderMoodButtons);
+// ---- device management ----
+function saveWifi() { const ssid = $('ssid').value.trim(), psk = $('psk').value; if (!ssid) { log('err','Wi-Fi name required'); return; } send({t:'wifi.set',ssid,psk}); $('psk').value = ''; }
+function forgetWifi() { if (confirm('Erase the Wi-Fi credentials stored on the watch?')) send({t:'wifi.forget'}); }
+function renderWifi(w) { const state = w.ev || '–'; $('wifistate').textContent = state + (w.ssid ? ' · ' + w.ssid : ''); $('wifiaddr').textContent = w.ip ? `${w.ip}:${w.port || 9899} · ${w.rssi ?? '?'} dBm` : (w.mac || '–'); }
+function savePower() { send({t:'cfg.set', screen_off_s:+$('screenoff').value, sleep_after_s:+$('sleepafter').value, allow_sleep:$('allowsleep').checked}); }
+function requestHistory() { send({t:'_history',hours:24}); }
+function renderHistory(h) {
+  $('histmeta').textContent = `${h.samples.length} samples / ${h.hours} h`;
+  const c=$('powerchart'), x=c.getContext('2d'), w=c.width, ht=c.height, samples=h.samples || [];
+  x.fillStyle='#0c0e12'; x.fillRect(0,0,w,ht); x.strokeStyle='#2a2f3a'; x.lineWidth=1; for(let y=20;y<ht;y+=30){x.beginPath();x.moveTo(0,y);x.lineTo(w,y);x.stroke();}
+  if(!samples.length){x.fillStyle='#8b93a5';x.font='14px sans-serif';x.fillText('No recorded samples yet — leave the daemon connected for a few minutes.',20,ht/2);return;}
+  const ts0=samples[0][0], ts1=samples[samples.length-1][0], span=Math.max(1,ts1-ts0); const yy=v=>ht-18-(Math.max(0,Math.min(100,v))/100)*(ht-36);
+  x.strokeStyle='#3ddc84';x.lineWidth=2;x.beginPath();samples.forEach((s,i)=>{const px=12+(s[0]-ts0)/span*(w-24),py=yy(s[1]);i?x.lineTo(px,py):x.moveTo(px,py)});x.stroke();
+  x.fillStyle='#8b93a5';x.font='11px sans-serif';x.fillText('100%',2,12);x.fillText('0%',2,ht-6);x.fillText(new Date(ts0*1000).toLocaleTimeString(),12,ht-4);x.fillText(new Date(ts1*1000).toLocaleTimeString(),w-90,ht-4);
+  const ev=(h.events||[]).slice(-4).map(e=>`${new Date(e[0]*1000).toLocaleTimeString()} ${e[1]} ${e[2]||''}`).join(' · ');$('histevents').innerHTML='<small>'+ (ev || 'No lifecycle events yet.') +'</small>';
+}
+// ---- key mapping editor ----
+const CAT = { triggers: ['A.single','A.double','A.hold','B.single','B.double','B.hold'], keys: { Editing: ['space','enter','esc'] }, moods: ['sleep','idle','thinking','working','waiting','question','error','celebrate'] };
+let MOODMAP = {};
+const MODS = ['cmd','ctrl','alt','shift'];
+const MOD_VARIANTS = m => ['', m, m + '_l', m + '_r'];           // off / either / left / right
+const MOD_LABEL = v => v === '' ? '—' : v.endsWith('_l') ? 'L' : v.endsWith('_r') ? 'R' : 'any';
+const isMod = k => MODS.some(m => k === m || k === m + '_l' || k === m + '_r');
+function groupedSelect(groups, value) {
+  const sel = document.createElement('select');
+  for (const [label, items] of Object.entries(groups)) {
+    const og = document.createElement('optgroup'); og.label = label;
+    items.forEach(k => { const o = document.createElement('option'); o.value = k; o.textContent = k === '' ? '(none)' : k; og.appendChild(o); });
+    sel.appendChild(og);
+  }
+  if (value !== undefined) sel.value = value;
+  return sel;
+}
+const RAW = t => t.endsWith('.down') || t.endsWith('.up');
+function triggerGroups() {
+  const g = { 'Button A': [], 'Button B': [], 'Power key': [], 'IMU gestures': [], 'Raw edges (advanced)': [] };
+  CAT.triggers.forEach(t => {
+    if (RAW(t)) return g['Raw edges (advanced)'].push(t);
+    (t.startsWith('A.') ? g['Button A'] : t.startsWith('B.') ? g['Button B'] : t.startsWith('PWR.') ? g['Power key'] : g['IMU gestures']).push(t);
+  });
+  return g;
+}
+function parseSpec(spec) {           // "verb:k1+k2" -> {verb, mods:Set, key}
+  let verb = 'tap', rest = spec || '';
+  if (rest.includes(':')) [verb, rest] = rest.split(':', 2);
+  const parts = rest.split('+').map(x => x.trim()).filter(Boolean);
+  const mods = new Set(parts.filter(isMod));
+  const key = parts.find(k => !isMod(k)) || '';
+  return { verb, mods, key };
+}
+function cell(labelText, el) {
+  const d = document.createElement('div'); d.className = 'cell';
+  const l = document.createElement('label'); l.textContent = labelText;
+  d.appendChild(l); d.appendChild(el); return d;
+}
+function keyRow(trigger, spec, mood) {
+  const tr = document.createElement('div'); tr.className = 'maprow'; const st = parseSpec(spec);
+  const trig = groupedSelect(triggerGroups(), trigger || 'A.single');
+  // hold only makes sense on a .down trigger: snap the trigger when the verb changes
+  // "hold while pressed" belongs on .hold (or a raw .down): a held button never produces a click,
+  // so it cannot collide with single/double arbitration.
+  const syncHold = () => {
+    if (verb.value !== 'hold') return;
+    if (trig.value.endsWith('.hold') || trig.value.endsWith('.down')) return;
+    const b = trig.value.split('.')[0];
+    if (['A','B'].includes(b)) trig.value = b + '.hold';
+    else keysMsg('hold needs a button .hold trigger', 'bad');
+  };
+  const verb = document.createElement('select');
+  [['tap','tap'],['hold','hold while pressed'],['press','press (manual)'],['release','release (manual)']].forEach(([v,l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; verb.appendChild(o); }); verb.value = st.verb;
+  const mods = document.createElement('div'); mods.className = 'mods';
+  MODS.forEach(m => {
+    const l = document.createElement('label'); l.appendChild(document.createTextNode(m));
+    const sel = document.createElement('select'); sel.dataset.mod = m;
+    MOD_VARIANTS(m).forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = MOD_LABEL(v); sel.appendChild(o); });
+    sel.value = [...st.mods].find(k => k === m || k.startsWith(m + '_')) || '';
+    l.appendChild(sel); mods.appendChild(l);
+  });
+  const groups = { '(no key — modifiers only)': [''], ...CAT.keys };
+  const key = groupedSelect(groups, st.key || (st.mods.size ? '' : 'space'));
+  if (st.key && ![...Object.values(groups)].flat().includes(st.key)) { const o = document.createElement('option'); o.value = o.textContent = st.key; key.appendChild(o); key.value = st.key; }
+  const moodSel = document.createElement('select'); [['', '—'], ...CAT.moods.map(m => [m, m])].forEach(([v, l]) => { const o = document.createElement('option'); o.value = v; o.textContent = l; moodSel.appendChild(o); });
+  moodSel.value = (mood || '').split(':')[0]; moodSel.title = 'Kiro face shown when this trigger fires';
+  const test = document.createElement('button'); test.textContent = '▶'; test.title = 'fire this action now (output lands in the box below)';
+  test.onclick = () => { const sink = $('keysink'); sink.focus(); setTimeout(() => send({t:'_action.test', action: rowSpec(tr)}), 60); };
+  const del = document.createElement('button'); del.textContent = '×'; del.title = 'remove'; del.onclick = () => tr.remove();
+  verb.addEventListener('change', () => { syncHold(); checkConflicts(); });
+  trig.addEventListener('change', checkConflicts);
+  moodSel.addEventListener('mouseenter', () => { if (moodSel.value) previewMood(moodSel.value); });
+  tr.appendChild(cell('trigger', trig));
+  tr.appendChild(cell('verb', verb));
+  tr.appendChild(cell('modifiers', mods));
+  tr.appendChild(cell('key', key));
+  tr.appendChild(cell('face', moodSel));
+  const btns = document.createElement('div'); btns.className = 'btns'; btns.appendChild(test); btns.appendChild(del);
+  tr.appendChild(btns);
+  tr._els = { trig, verb, mods, key, moodSel };
+  return tr;
+}
+function rowSpec(tr) {
+  const { verb, mods, key } = tr._els;
+  const parts = [...mods.querySelectorAll('select')].map(c => c.value).filter(Boolean);
+  if (key.value) parts.push(key.value);
+  return (verb.value === 'tap' ? '' : verb.value + ':') + parts.join('+');
+}
+function renderKeys(keys) {
+  const t = $('keys'); t.innerHTML = '';
+  const all = new Set([...Object.keys(keys), ...Object.keys(MOODMAP)]);
+  all.forEach(k => t.appendChild(keyRow(k, keys[k] || '', MOODMAP[k])));
+  if (!all.size) t.appendChild(keyRow('A.single', 'space', 'celebrate'));
+  checkConflicts();
+}
+// A raw .down/.up mapping fires on every press, so it also fires during a double click.
+// Warn when the same button mixes raw edges with click counting.
+function checkConflicts() {
+  const byBtn = {};
+  for (const tr of $('keys').querySelectorAll('.maprow')) {
+    if (!tr._els) continue;
+    const ev = tr._els.trig.value, btn = ev.split('.')[0];
+    if (!['A','B','PWR'].includes(btn)) continue;
+    (byBtn[btn] = byBtn[btn] || { raw: [], count: [] });
+    if (RAW(ev)) byBtn[btn].raw.push(ev);
+    else if (/\.(single|double|triple)$/.test(ev)) byBtn[btn].count.push(ev);
+  }
+  const bad = Object.entries(byBtn).filter(([, v]) => v.raw.length && v.count.length);
+  const box = $('conflict');
+  if (!bad.length) { box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  box.innerHTML = bad.map(([b, v]) =>
+    `⚠︎ Button ${b}: <code>${v.raw.join(', ')}</code> fires on every press — including both presses of a double click — ` +
+    `so it overlaps <code>${v.count.join(', ')}</code>. For "hold a key while pressed" use <code>${b}.hold</code> instead of <code>${b}.down</code>.`
+  ).join('<br>');
+}
+function addKeyRow() { $('keys').appendChild(keyRow()); }
+function saveKeys() {
+  const keys = {}, moods = {};
+  for (const tr of $('keys').querySelectorAll('.maprow')) {
+    if (!tr._els) continue;
+    const ev = tr._els.trig.value, act = rowSpec(tr), mood = tr._els.moodSel.value;
+    if (!act && !mood) { keysMsg(ev + ': choose a key, a modifier, or a face', 'bad'); return; }
+    if (keys[ev] || moods[ev]) { keysMsg('duplicate trigger ' + ev, 'bad'); return; }
+    if (act) keys[ev] = act;
+    if (mood) moods[ev] = mood;
+  }
+  send({t:'_keys.set', keys, moods});
+  checkConflicts();
+}
+function keysMsg(text, cls) { const e = $('keysmsg'); e.textContent = text; e.style.color = cls === 'ok' ? 'var(--ok)' : 'var(--bad)'; setTimeout(() => e.textContent = '', 4000); }
+// ---- virtual microphone ----
+let vm = { running:false }; let bleOn = false;
+function renderBle(b, hid, keys) {
+  if (b) { bleOn = !!b.enabled; $('blestate').textContent = !b.enabled ? 'off' : (b.connected ? `connected as keyboard (${b.name}, ${b.mac || ''})` : `advertising as ${b.name} — pair in Bluetooth settings`); }
+  $('bleen').textContent = bleOn ? 'Disable Bluetooth' : 'Enable Bluetooth';
+  if (keys) $('blekeys').textContent = Object.keys(keys).length + (hid ? ' · active (HID)' : ' · stored, waiting for BLE connection');
+}
+function renderVmDevices(devs) {
+  const sel = $('vmdev'); const cur = sel.value; sel.innerHTML = '';
+  devs.forEach(d => { const o = document.createElement('option'); o.value = d.name; o.textContent = (d.loopback ? '● ' : '') + d.name + ` (${d.rate} Hz)`; sel.appendChild(o); });
+  const lb = devs.find(d => d.loopback); if (cur && [...sel.options].some(o => o.value === cur)) sel.value = cur; else if (lb) sel.value = lb.name;
+}
+function renderVm(a) {
+  vm.running = a.running;
+  $('vmbtn').textContent = a.running ? 'Stop' : 'Start'; $('vmdev').disabled = a.running;
+  const st = $('vmstat'); st.className = 'pill ' + (a.running ? 'ok' : '');
+  st.textContent = a.running ? `${a.device} · buffer ${a.buffer_ms} ms · underruns ${a.underruns}${a.dropped_ms ? ' · dropped ' + a.dropped_ms + ' ms' : ''}` : 'stopped';
+  $('vmlevel').style.width = Math.min(100, Math.sqrt(a.level || 0) * 100) + '%';
+}
+function toggleVm() { send(vm.running ? {t:'_audio.stop'} : {t:'_audio.start', device: $('vmdev').value}); }
+setInterval(() => { if (vm.running && ws && ws.readyState === 1) ws.send(JSON.stringify({t:'_audio.status'})); }, 500);
+
+// ---- mic ----
+const wave = $('wave').getContext('2d');
+function onPcm(buf) {
+  mic.chunks.push(new Int16Array(buf));
+  const s = new Int16Array(buf); wave.fillStyle = '#0c0e12'; wave.fillRect(0, 0, 560, 80); wave.strokeStyle = '#7aa2ff'; wave.beginPath();
+  for (let i = 0; i < 560; i++) { const v = s[(i * s.length / 560) | 0] / 32768; wave.lineTo(i, 40 - v * 38); } wave.stroke();
+  const secs = mic.chunks.reduce((a, c) => a + c.length, 0) / mic.rate; $('micstat').textContent = secs.toFixed(1) + ' s';
+}
+function toggleMic() {
+  if (!mic.on) { mic.on = true; mic.chunks = []; $('player').style.display = 'none'; $('dl').style.display = 'none'; $('micbtn').textContent = 'Stop'; send({t:'mic.start', rate:+$('micrate').value}); }
+  else { send({t:'mic.stop'}); }
+}
+function finishMic() {
+  mic.on = false; $('micbtn').textContent = 'Start recording';
+  const n = mic.chunks.reduce((a, c) => a + c.length, 0); if (!n) return;
+  const pcm = new Int16Array(n); let o = 0; for (const c of mic.chunks) { pcm.set(c, o); o += c.length; }
+  const wavBuf = new ArrayBuffer(44 + n * 2), v = new DataView(wavBuf), str = (p, s) => [...s].forEach((ch, i) => v.setUint8(p + i, ch.charCodeAt(0)));
+  str(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); str(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, mic.rate, true); v.setUint32(28, mic.rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n * 2, true);
+  new Int16Array(wavBuf, 44).set(pcm);
+  const url = URL.createObjectURL(new Blob([wavBuf], { type: 'audio/wav' }));
+  $('player').src = url; $('player').style.display = 'block'; $('dl').href = url; $('dl').download = 'stopwatch-mic.wav'; $('dl').style.display = 'inline';
+}
+setInterval(() => { const now = performance.now(); const r = (msgCount - lastCount) / ((now - lastRateT) / 1000); lastCount = msgCount; lastRateT = now; $('rate').textContent = r.toFixed(0) + ' msg/s'; }, 1000);
+connect();
+</script>
+</body>
+</html>
