@@ -172,3 +172,8 @@ printed `BAT` is actually **5V IN** — never connect a battery there.
 Every firmware project builds twice from one source: `pio run -e native` runs it on the Mac against
 SDL (mouse = touch, keyboard = buttons), `pio run -e stopwatch` builds for the device. Iterate on the
 Mac, flash only for what the host cannot model.
+
+## Licence
+
+MIT, see [LICENSE](LICENSE). The upstream libraries this builds against keep their own licences, and
+the Kiro ghost bitmap is not covered — [NOTICE.md](NOTICE.md) has the details.

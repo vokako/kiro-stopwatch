@@ -19,19 +19,20 @@ and is offered back to upstream terms.
 Vendor datasheets and schematics referenced in `references/README.md` are
 downloaded from M5Stack and Espressif and are not redistributed here.
 
-## Kiro ghost artwork — read before publishing
+## Kiro ghost artwork — not covered by the MIT licence
 
 `linkfw/src/kiro_body.{c,h}` and `buddy/src/kiro_body.{c,h}` are generated
 bitmaps of the **Kiro ghost mascot**, rasterised from `kiro-ghost.svg`. That SVG
-came from a sibling project in this workspace and carries no licence statement of
-its own; the mascot is Kiro/AWS branding, not original artwork of this project.
+came from a sibling project and carries no licence statement of its own; the
+mascot is Kiro/AWS branding, not original artwork of this project.
 
-Consequences:
+The MIT licence in `LICENSE` covers this repository's own source. It does **not**
+grant any rights to the mascot artwork, and it does not replace the upstream
+licences listed above.
 
-- Fine for private or internal use, which is what this repository is set up for.
-- Before pushing to a public host, decide deliberately: either obtain permission
-  for the mark, or replace the asset. `linkfw/tools/gen_kiro_body.py` regenerates
-  the bitmap from any SVG of the same shape, so swapping in your own character is
-  a one-command change plus new eye coordinates.
-- The generator itself, the animation code (`face.cpp`, `ui/face.js`) and
-  everything else in this repository are original work.
+If you reuse this code, regenerate the bitmap from artwork you own:
+`linkfw/tools/gen_kiro_body.py` takes any SVG of the same shape, so swapping in
+your own character is one command plus new eye coordinates.
+
+The generator itself, the animation code (`face.cpp`, `ui/face.js`) and
+everything else in this repository are original work.
